@@ -16,7 +16,7 @@ PcapAnalyze::PcapAnalyze(const QString &targetIface)
 	//	int err = pcapIp->capture(iface);
 	if (err)
 		qDebug() << "pcap error " << err;
-	else qDebug() << "not error " << err;
+	else qDebug() << "pcapStart " << err;
 }
 
 void PcapAnalyze::pcapTest()

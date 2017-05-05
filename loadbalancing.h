@@ -7,6 +7,9 @@
 #include "common/tcpserver.h"
 #include "common/dhcpserverinfo.h"
 
+#include "ecl/settings/applicationsettings.h"
+
+
 #include "network/pcapanalyze.h"
 
 class LoadBalancing : QObject
@@ -15,13 +18,17 @@ class LoadBalancing : QObject
 public:
 	LoadBalancing(QObject * parent = 0);
 	void splitIP(void);
-	void networkStateInfo();
+	QHash<QString, float> networkStateInfo();
 	QStringList splitISP();
 	QStringList checkISPState();
-	void checkIPruleList(const QString &ip);
+	void checkIPruleList(const QString &ip, const QString &table);
 	void checkIPstatus(const QString &ip);
 	void init();
 	void checkMacAdress(QHash<QString, QString> lease);
+	void logFile(const QString &logpath, const QString &logdata);
+	void gettingNetworkData();
+	QString checkMACfile(const QString &macpath, QHash<QString, QString> lease, QString type);
+	int iptablesRun(const QStringList &cmd);
 protected slots:
 	void timeout();
 	void gettingData(QByteArray data);
@@ -30,7 +37,9 @@ protected:
 	int deleteRule(const QString &ip, const QString &table);
 	void addRoute(const QString &iface, const QString &ip, const QString &table);
 	void deleteRoute(const QString &iface, const QString &ip, const QString &table);
+	QStringList iptablesParsing(const QString &cmd);
 private:
+	ApplicationSettings *appset;
 	DhcpServerInfo *dserver;
 	PcapAnalyze *analyze;
 	TcpServer *tcp;
@@ -38,7 +47,7 @@ private:
 	QString vlanno;
 	QString personalgrp;
 	QTimer *timer;
-	QHash <QString, float> ifacedownload;
+//	QHash <QString, float> ifacedownload;
 	QString ip;
 	QString mac;
 

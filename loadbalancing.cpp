@@ -9,22 +9,18 @@
 #define iface2 "192.168.3.14"
 #define iface3 "192.168.4.14"
 
-#define rarelyused  "T3"
-#define standartused "T1"
-#define commonlyused "T2"
-
-//dserver = new DhcpServerInfo();
-//iplist = dserver->getIPList();
-//	splitIP();
+#define standartused "standartused"
+#define commonlyused "commonlyused"
+#define rarelyused  "rarelyused"
 
 LoadBalancing::LoadBalancing(QObject *parent)
 {
-	analyze = new PcapAnalyze("enp3s0f1");
-	qDebug() << analyze;
+	appset = ApplicationSettings::instance();
+	appset->load("loadbalancing.json",QIODevice::ReadWrite);
 
 	init();
 
-
+	analyze = NULL;
 	timer = new QTimer();
 	connect(timer, SIGNAL(timeout()), SLOT(timeout()));
 	timer->start(1000);
@@ -32,9 +28,22 @@ LoadBalancing::LoadBalancing(QObject *parent)
 
 void LoadBalancing::timeout()
 {
-//	networkStateInfo();
-	//	checkISPState();
-	//	timer->setInterval(1000);
+	gettingNetworkData();
+	networkStateInfo();
+}
+
+void LoadBalancing::gettingNetworkData()
+{
+	QString iface = appset->get("pcap.interface").toString();
+	QString pcapstate = appset->get("pcap.status").toString();
+	QString logpath = appset->get("pcap.log_path").toString();
+
+	if (!analyze)
+		if (pcapstate != "stop") {
+			analyze = new PcapAnalyze(iface);
+			if (analyze != NULL)
+				logFile(logpath," Pcap Started");
+		}
 }
 
 void LoadBalancing::gettingData(QByteArray data)
@@ -49,7 +58,7 @@ void LoadBalancing::gettingData(QByteArray data)
 			mac = tmp;
 		}
 	}
-	qDebug() << ip << mac;
+	logFile(appset->get("pcap.log_path").toString(),QString("%1 ~ %2").arg(ip).arg(mac));
 
 	QHash <QString, QString> lease;
 	lease.insert(ip, mac);
@@ -66,7 +75,7 @@ void LoadBalancing::splitIP()
 			personalgrp = flds.at(2);
 		}
 		qDebug() << vlanno << personalgrp;
-		checkIPruleList(ip);
+		//		checkIPruleList(ip);
 	}
 }
 
@@ -74,53 +83,100 @@ void LoadBalancing::checkMacAdress(QHash<QString, QString> lease)
 {
 	QString ruletype = standartused;
 
-	QFile macFileA("mac_bilkonA.txt");
-	if (!macFileA.open(QIODevice::ReadOnly | QIODevice::Text))
-		return;
-
-	while (!macFileA.atEnd()) {
-		QString tmp = macFileA.readLine().data();
-		tmp.replace("\n","");
-
-		if (tmp == lease.value(ip)) {
-			ruletype = rarelyused;
-			break;
-		} else ruletype = standartused;
+	if (ruletype == standartused) {
+		QString macfilepath = appset->get("mac.0.file1").toString();
+		QString type = appset->get("mac.0.ruletype").toString();
+		if (!macfilepath.isEmpty())
+			ruletype = checkMACfile(macfilepath, lease, type);
 	}
-	qDebug() << "Mac_file_A" << ruletype;
-	macFileA.close();
-
-
-	QFile macFileB("mac_bilkonB.txt");
-	if (!macFileB.open(QIODevice::ReadOnly | QIODevice::Text))
-		return;
-
-	while (!macFileB.atEnd()) {
-		QString tmp = macFileB.readLine().data();
-		tmp.replace("\n","");
-
-		if (ruletype != standartused)
-			break;
-
-		if (tmp == lease.value(ip)) {
-			ruletype = commonlyused;
-			break;
-		} else ruletype = standartused;
+	if (ruletype == standartused) {
+		QString macfilepath = appset->get("mac.1.file2").toString();
+		QString type = appset->get("mac.1.ruletype").toString();
+		if (!macfilepath.isEmpty())
+			ruletype = checkMACfile(macfilepath, lease, type);
 	}
-	macFileB.close();
-
-	addRule(ip, ruletype);
+	if (ruletype == standartused) {
+		QString macfilepath = appset->get("mac.2.file2").toString();
+		QString type = appset->get("mac.2.ruletype").toString();
+		if (!macfilepath.isEmpty())
+			ruletype = checkMACfile(macfilepath, lease, type);
+	}
+	if (ruletype == standartused) {
+		QString macfilepath = appset->get("mac.3.file3").toString();
+		QString type = appset->get("mac.3.ruletype").toString();
+		if (!macfilepath.isEmpty())
+			ruletype = checkMACfile(macfilepath, lease, type);
+	}
+	checkIPruleList(ip, ruletype);
 }
 
-void LoadBalancing::checkIPruleList(const QString &ip)
+QString LoadBalancing::checkMACfile(const QString &macpath, QHash<QString, QString> lease, QString type)
+{
+	QString ruletype = standartused;
+	QFile macFile(macpath);
+	if (!macFile.open(QIODevice::ReadOnly | QIODevice::Text))
+		return "";
+
+	while (!macFile.atEnd()) {
+		QString tmp = macFile.readLine().data();
+		tmp.replace("\n","");
+
+		if (tmp == lease.value(ip)) {
+			ruletype = type;
+			break;
+		} else ruletype = standartused;
+	}
+	logFile(appset->get("pcap.log_path").toString(), QString("%1 ~ %2").arg(macpath).arg(ruletype));
+	macFile.close();
+	return ruletype;
+}
+
+void LoadBalancing::checkIPruleList(const QString &ip, const QString &table)
 {
 	QProcess p;
 	p.start("ip rule show");
 	p.waitForFinished(2000);
 	QString tmp = p.readAllStandardOutput().data();
-	if (!tmp.contains(ip)) {
 
+	QString defIP;
+	QString defTable;
+
+	QStringList flds;
+	foreach (QString line, tmp.split("\n")) {
+		flds << line.split("\t").at(1);
 	}
+
+	QString temp;
+	QHash<QString, QString> iprule;
+	int numberoflist = 0;
+	int nolist = 0;
+	foreach (QString line, flds) {
+		temp = line.split(" ").at(1);
+		if (temp.split(".").size() > 3)
+			defIP = temp;
+
+		temp = line.split(" ").at(3);
+		if (temp.size() > 9)
+			defTable = temp;
+
+		if (ip != defIP) {
+			nolist++;
+		}
+		if (ip == defIP & table != defTable) {
+			addRule(ip, table);
+			for (int i = 0; i < 10; i ++)
+				deleteRule(ip, defTable);
+		}
+
+		if (ip == defIP &  table == defTable) {
+			numberoflist ++;
+			for (int i = 1; i < numberoflist; i++)
+				deleteRule(ip, table);
+		}
+	}
+	if (nolist == flds.size())
+		addRule(ip, table);
+	//	addRule(ip, table);
 }
 
 void LoadBalancing::checkIPstatus(const QString &ip)
@@ -204,12 +260,14 @@ void LoadBalancing::init()
 
 }
 
-void LoadBalancing::networkStateInfo()
+QHash <QString, float> LoadBalancing::networkStateInfo()
 {
+	QHash <QString, float> ifacedownload;
 	ifacedownload.insert(iface1, analyze->getDstIPStats("192.168.1.14") / 8); // MBYTE;
 	ifacedownload.insert(iface2, analyze->getDstIPStats("192.168.3.14") / 8); // MBYTE;
 	ifacedownload.insert(iface3, analyze->getDstIPStats("192.168.4.14") / 8); // MBYTE;
-	qDebug() << ifacedownload.values().at(0) << ifacedownload.values().at(1) << ifacedownload.values().at(2);
+
+	return ifacedownload;
 }
 
 QStringList LoadBalancing::checkISPState()
@@ -218,7 +276,7 @@ QStringList LoadBalancing::checkISPState()
 
 int LoadBalancing::addRule(const QString &ip, const QString &table)
 {
-	qDebug() << "add rule" << ip << table;
+	logFile(appset->get("pcap.log_path").toString(),QString("Adding table %1 ~ %2").arg(ip).arg(table));
 	QProcess p;
 	p.start(QString ("ip rule add from %1 table %2").arg(ip).arg(table));
 	if (!p.waitForStarted())
@@ -233,6 +291,7 @@ int LoadBalancing::addRule(const QString &ip, const QString &table)
 
 int LoadBalancing::deleteRule(const QString &ip, const QString &table)
 {
+	logFile(appset->get("pcap.log_path").toString(),QString("Deleting table %1 ~ %2").arg(ip).arg(table));
 	QProcess p;
 	p.start(QString ("ip rule delete from %1 table %2").arg(ip).arg(table));
 	if (!p.waitForStarted())
@@ -256,3 +315,32 @@ void LoadBalancing::deleteRoute(const QString &iface, const QString &ip, const Q
 }
 
 
+void LoadBalancing::logFile(const QString &logpath, const QString &logdata)
+{
+	QFile log(logpath);
+	if (!log.open(QIODevice::ReadWrite | QIODevice::Append))
+		return;
+
+	QTextStream out(&log);
+	out << logdata << "\n";
+	log.close();
+}
+
+QStringList LoadBalancing::iptablesParsing(const QString &cmd)
+{
+	QStringList flds = cmd.split(",");
+
+return flds;
+}
+
+
+int LoadBalancing::iptablesRun(const QStringList &cmd)
+{
+	QProcess p;
+	for (int i = 0; i < cmd.size(); i++)
+		p.start(cmd.at(i));
+	if (!p.waitForStarted())
+		return -1;
+	p.waitForFinished(2000);
+	qDebug() << p.readAllStandardOutput();
+}
