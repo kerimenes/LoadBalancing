@@ -29,7 +29,7 @@ LoadBalancing::LoadBalancing(QObject *parent)
 void LoadBalancing::timeout()
 {
 	gettingNetworkData();
-	networkStateInfo();
+//	networkStateInfo();
 }
 
 void LoadBalancing::gettingNetworkData()
