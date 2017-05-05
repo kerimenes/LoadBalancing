@@ -44,6 +44,14 @@ void LoadBalancing::gettingNetworkData()
 			if (analyze != NULL)
 				logFile(logpath," Pcap Started");
 		}
+	QHash <QString, float> ifacedownload;
+	ifacedownload = networkStateInfo();
+	logFile(logpath, QString("Adding table %1 ~ %2 ~ %3")
+			.arg(QString::number(ifacedownload.values().at(0)))
+			.arg(QString::number(ifacedownload.values().at(1)))
+			.arg(QString::number(ifacedownload.values().at(2)))
+			);
+
 }
 
 void LoadBalancing::gettingData(QByteArray data)
@@ -264,9 +272,9 @@ void LoadBalancing::init()
 QHash <QString, float> LoadBalancing::networkStateInfo()
 {
 	QHash <QString, float> ifacedownload;
-	ifacedownload.insert(iface1, analyze->getDstIPStats("192.168.1.14") / 8); // MBYTE;
-	ifacedownload.insert(iface2, analyze->getDstIPStats("192.168.3.14") / 8); // MBYTE;
-	ifacedownload.insert(iface3, analyze->getDstIPStats("192.168.4.14") / 8); // MBYTE;
+	ifacedownload.insert(iface1, analyze->getDstIPStats("192.168.1.202") / 8); // MBYTE;
+	ifacedownload.insert(iface2, analyze->getDstIPStats("192.168.3.203") / 8); // MBYTE;
+	ifacedownload.insert(iface3, analyze->getDstIPStats("192.168.4.204") / 8); // MBYTE;
 
 	return ifacedownload;
 }
