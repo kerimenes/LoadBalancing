@@ -37,17 +37,19 @@ void LoadBalancing::gettingNetworkData()
 	QString iface = appset->get("pcap.interface").toString();
 	QString pcapstate = appset->get("pcap.status").toString();
 	QString logpath = appset->get("pcap.log_path").toString();
-
+	qDebug() << "next1";
 	if (!analyze)
 		if (pcapstate != "stop") {
 			analyze = new PcapAnalyze(iface);
 			if (analyze != NULL)
 				logFile(logpath," Pcap Started");
 		}
+	qDebug() << "next2";
 }
 
 void LoadBalancing::gettingData(QByteArray data)
 {
+	qDebug() << "next3";
 	QStringList flds = QString (data.data()).split(" ");
 
 	foreach (QString tmp, flds) {
@@ -58,12 +60,15 @@ void LoadBalancing::gettingData(QByteArray data)
 			mac = tmp;
 		}
 	}
+	qDebug() << "next4";
+
 	logFile(appset->get("pcap.log_path").toString(),QString("%1 ~ %2").arg(ip).arg(mac));
 
 	QHash <QString, QString> lease;
 	lease.insert(ip, mac);
 
 	checkMacAdress(lease);
+	qDebug() << "next5";
 }
 
 void LoadBalancing::splitIP()
