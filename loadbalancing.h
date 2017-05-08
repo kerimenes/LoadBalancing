@@ -19,13 +19,11 @@ public:
 	LoadBalancing(QObject * parent = 0);
 	void splitIP(void);
 	QHash<QString, float> networkStateInfo();
-	QStringList splitISP();
-	QStringList checkISPState();
 	void checkIPruleList(const QString &ip, const QString &table);
 	void checkIPstatus(const QString &ip);
 	void init();
 	void checkMacAdress(QHash<QString, QString> lease);
-	void logFile(const QString &logpath, const QString &logdata);
+	void logFile(const QString &logdata);
 	void gettingNetworkData();
 	QString checkMACfile(const QString &macpath, QHash<QString, QString> lease, QString type);
 	int iptablesRun(const QStringList &cmd);
@@ -50,7 +48,6 @@ private:
 //	QHash <QString, float> ifacedownload;
 	QString ip;
 	QString mac;
-
 };
 
 #endif // LOADBALANCING_H

@@ -34,7 +34,6 @@ void TcpServer::newConnection()
 
 void TcpServer::clientDisconnected()
 {
-	qDebug() << "Disconnected";
 	sock->deleteLater();
 }
 
@@ -46,4 +45,3 @@ void TcpServer::newData()
 		emit newDataAvailable(data);
 	}
 }
-

@@ -29,28 +29,27 @@ LoadBalancing::LoadBalancing(QObject *parent)
 void LoadBalancing::timeout()
 {
 	gettingNetworkData();
-//	networkStateInfo();
+	//	networkStateInfo();
 }
 
 void LoadBalancing::gettingNetworkData()
 {
 	QString iface = appset->get("pcap.interface").toString();
 	QString pcapstate = appset->get("pcap.status").toString();
-	QString logpath = appset->get("pcap.log_path").toString();
 
 	if (!analyze)
 		if (pcapstate != "stop") {
 			analyze = new PcapAnalyze(iface);
 			if (analyze != NULL)
-				logFile(logpath," Pcap Started");
+				logFile("Pcap Started");
+			QHash <QString, float> ifacedownload;
+			ifacedownload = networkStateInfo();
+			logFile(QString("pcap out %1 ~ %2 ~ %3")
+					.arg(QString::number(ifacedownload.values().at(0)))
+					.arg(QString::number(ifacedownload.values().at(1)))
+					.arg(QString::number(ifacedownload.values().at(2)))
+					);
 		}
-	QHash <QString, float> ifacedownload;
-	ifacedownload = networkStateInfo();
-	logFile(logpath, QString("Adding table %1 ~ %2 ~ %3")
-			.arg(QString::number(ifacedownload.values().at(0)))
-			.arg(QString::number(ifacedownload.values().at(1)))
-			.arg(QString::number(ifacedownload.values().at(2)))
-			);
 
 }
 
@@ -66,8 +65,22 @@ void LoadBalancing::gettingData(QByteArray data)
 			mac = tmp;
 		}
 	}
+	flds = mac.split(":");
+	QStringList ls;
+	foreach (QString tmp, flds) {
+		if (tmp.size() < 2)
+			tmp.replace(tmp, QString("0%1").arg(tmp));
+		ls << tmp;
+	}
+	mac = QString("%1:%2:%3:%4:%5:%6")
+			.arg(ls.at(0))
+			.arg(ls.at(1))
+			.arg(ls.at(2))
+			.arg(ls.at(3))
+			.arg(ls.at(4))
+			.arg(ls.at(5));
 
-	logFile(appset->get("pcap.log_path").toString(),QString("%1 ~ %2").arg(ip).arg(mac));
+	logFile(QString("%1 ~ %2").arg(ip).arg(mac));
 
 	QHash <QString, QString> lease;
 	lease.insert(ip, mac);
@@ -129,13 +142,17 @@ QString LoadBalancing::checkMACfile(const QString &macpath, QHash<QString, QStri
 	while (!macFile.atEnd()) {
 		QString tmp = macFile.readLine().data();
 		tmp.replace("\n","");
-
+		if (tmp.contains("~")) {
+			QStringList flds = tmp.split("~");
+			tmp = flds.at(0);
+			tmp.remove(" ");
+		}
 		if (tmp == lease.value(ip)) {
 			ruletype = type;
 			break;
 		} else ruletype = standartused;
 	}
-	logFile(appset->get("pcap.log_path").toString(), QString("%1 ~ %2").arg(macpath).arg(ruletype));
+	logFile(QString("%1 ~ %2").arg(macpath).arg(ruletype));
 	macFile.close();
 	return ruletype;
 }
@@ -279,19 +296,14 @@ QHash <QString, float> LoadBalancing::networkStateInfo()
 	return ifacedownload;
 }
 
-QStringList LoadBalancing::checkISPState()
-{
-}
-
 int LoadBalancing::addRule(const QString &ip, const QString &table)
 {
-	logFile(appset->get("pcap.log_path").toString(),QString("Adding table %1 ~ %2").arg(ip).arg(table));
+	logFile(QString("Adding table %1 ~ %2").arg(ip).arg(table));
 	QProcess p;
 	p.start(QString ("ip rule add from %1 table %2").arg(ip).arg(table));
 	if (!p.waitForStarted())
 		return -1;
 	p.waitForFinished(200);
-	qDebug() << p.readAllStandardOutput().size();
 	if (p.readAllStandardOutput().size() > 0) {
 		qDebug() << "exiting not execute script or command";
 		return -1;
@@ -300,13 +312,12 @@ int LoadBalancing::addRule(const QString &ip, const QString &table)
 
 int LoadBalancing::deleteRule(const QString &ip, const QString &table)
 {
-	logFile(appset->get("pcap.log_path").toString(),QString("Deleting table %1 ~ %2").arg(ip).arg(table));
+	logFile(QString("Deleting table %1 ~ %2").arg(ip).arg(table));
 	QProcess p;
 	p.start(QString ("ip rule delete from %1 table %2").arg(ip).arg(table));
 	if (!p.waitForStarted())
 		return -1;
 	p.waitForFinished(200);
-	qDebug() << p.readAllStandardOutput().size();
 	if (p.readAllStandardOutput().size() > 0) {
 		qDebug() << "exiting not execute script or command";
 		return -1;
@@ -324,8 +335,9 @@ void LoadBalancing::deleteRoute(const QString &iface, const QString &ip, const Q
 }
 
 
-void LoadBalancing::logFile(const QString &logpath, const QString &logdata)
+void LoadBalancing::logFile(const QString &logdata)
 {
+	QString logpath = appset->get("pcap.log_path").toString();
 	QFile log(logpath);
 	if (!log.open(QIODevice::ReadWrite | QIODevice::Append))
 		return;
@@ -339,7 +351,7 @@ QStringList LoadBalancing::iptablesParsing(const QString &cmd)
 {
 	QStringList flds = cmd.split(",");
 
-return flds;
+	return flds;
 }
 
 
