@@ -1,13 +1,9 @@
 #include "loadbalancing.h"
 
-#include <QProcess>
+#include <QUuid>
 #include <QDebug>
 #include <QTimer>
 #include <QFile>
-
-#define iface1 "192.168.1.14"
-#define iface2 "192.168.3.14"
-#define iface3 "192.168.4.14"
 
 #define standartused "standartused"
 #define commonlyused "commonlyused"
@@ -17,9 +13,8 @@ LoadBalancing::LoadBalancing(QObject *parent)
 {
 	appset = ApplicationSettings::instance();
 	appset->load("loadbalancing.json",QIODevice::ReadWrite);
-
+	p = new QProcess();
 	init();
-
 	analyze = NULL;
 	timer = new QTimer();
 	connect(timer, SIGNAL(timeout()), SLOT(timeout()));
@@ -29,7 +24,6 @@ LoadBalancing::LoadBalancing(QObject *parent)
 void LoadBalancing::timeout()
 {
 	gettingNetworkData();
-	//	networkStateInfo();
 }
 
 void LoadBalancing::gettingNetworkData()
@@ -40,17 +34,17 @@ void LoadBalancing::gettingNetworkData()
 	if (!analyze)
 		if (pcapstate != "stop") {
 			analyze = new PcapAnalyze(iface);
-			if (analyze != NULL)
-				logFile("Pcap Started");
-			QHash <QString, float> ifacedownload;
-			ifacedownload = networkStateInfo();
-			logFile(QString("pcap out %1 ~ %2 ~ %3")
-					.arg(QString::number(ifacedownload.values().at(0)))
-					.arg(QString::number(ifacedownload.values().at(1)))
-					.arg(QString::number(ifacedownload.values().at(2)))
-					);
 		}
-
+	if (analyze != NULL) {
+		logFile("Pcap Started");
+		QHash <QString, float> ifacedownload;
+		ifacedownload = networkStateInfo();
+		logFile(QString("pcap out %1 ~ %2 ~ %3")
+				.arg(QString::number(ifacedownload.values().at(0)))
+				.arg(QString::number(ifacedownload.values().at(1)))
+				.arg(QString::number(ifacedownload.values().at(2)))
+				);
+	}
 }
 
 void LoadBalancing::gettingData(QByteArray data)
@@ -88,6 +82,11 @@ void LoadBalancing::gettingData(QByteArray data)
 	checkMacAdress(lease);
 }
 
+void LoadBalancing::processOutput()
+{
+	qDebug() << "asdqe";
+}
+
 void LoadBalancing::splitIP()
 {
 	foreach (const QString &ip, iplist) {
@@ -97,7 +96,6 @@ void LoadBalancing::splitIP()
 			personalgrp = flds.at(2);
 		}
 		qDebug() << vlanno << personalgrp;
-		//		checkIPruleList(ip);
 	}
 }
 
@@ -159,10 +157,11 @@ QString LoadBalancing::checkMACfile(const QString &macpath, QHash<QString, QStri
 
 void LoadBalancing::checkIPruleList(const QString &ip, const QString &table)
 {
-	QProcess p;
-	p.start("ip rule show");
-	p.waitForFinished(2000);
-	QString tmp = p.readAllStandardOutput().data();
+	QString tmp;
+	int err = processRun("ip rule show");
+	if (err != 0)
+		logFile("Process Error ~ ip rule show");
+	else tmp = p->readAllStandardOutput().data();
 
 	QString defIP;
 	QString defTable;
@@ -173,7 +172,6 @@ void LoadBalancing::checkIPruleList(const QString &ip, const QString &table)
 	}
 
 	QString temp;
-	QHash<QString, QString> iprule;
 	int numberoflist = 0;
 	int nolist = 0;
 	foreach (QString line, flds) {
@@ -188,13 +186,13 @@ void LoadBalancing::checkIPruleList(const QString &ip, const QString &table)
 		if (ip != defIP) {
 			nolist++;
 		}
-		if (ip == defIP & table != defTable) {
+		if ((ip == defIP) & (table != defTable)) {
 			addRule(ip, table);
 			for (int i = 0; i < 10; i ++)
 				deleteRule(ip, defTable);
 		}
 
-		if (ip == defIP &  table == defTable) {
+		if ((ip == defIP) &  (table == defTable)) {
 			numberoflist ++;
 			for (int i = 1; i < numberoflist; i++)
 				deleteRule(ip, table);
@@ -202,7 +200,6 @@ void LoadBalancing::checkIPruleList(const QString &ip, const QString &table)
 	}
 	if (nolist == flds.size())
 		addRule(ip, table);
-	//	addRule(ip, table);
 }
 
 void LoadBalancing::checkIPstatus(const QString &ip)
@@ -214,67 +211,11 @@ void LoadBalancing::checkIPstatus(const QString &ip)
 	}
 	if (personalgrp.toInt() <= 99) {
 		addRule(ip, rarelyused);
-	} else if (personalgrp.toInt() > 99 & personalgrp.toInt() <= 199) {
+	} else if ((personalgrp.toInt() > 99) & (personalgrp.toInt() <= 199)) {
 		addRule(ip, commonlyused);
-	} else if (personalgrp.toInt() > 199 & personalgrp.toInt() <=255) {
+	} else if ((personalgrp.toInt() > 199) & (personalgrp.toInt() <= 255)) {
 		addRule(ip, standartused);
 	}
-
-#ifdef statement
-	if ((vlanno == "10") & (personalgrp <= "199")) {
-		addRule(ip, rarelyused);
-	} else if (vlanno == "10" & personalgrp > "199") {
-		addRule(ip, standartused);
-	}
-
-	if (vlanno == "20" & personalgrp <= "199") {
-		addRule(ip, rarelyused);
-	} else if (vlanno == "20" & personalgrp > "199") {
-		addRule(ip, standartused);
-	}
-
-	if (vlanno == "30" & personalgrp <= "199") {
-		addRule(ip, rarelyused);
-	} else if (vlanno == "30" & personalgrp > "199") {
-		addRule(ip, standartused);
-	}
-
-	if (vlanno == "40" & personalgrp <= "199") {
-		addRule(ip, rarelyused);
-	} else if (vlanno == "40" & personalgrp > "199") {
-		addRule(ip, standartused);
-	}
-
-	if (vlanno == "50" & personalgrp <= "199") {
-		addRule(ip, rarelyused);
-	} else if (vlanno == "50" & personalgrp > "199") {
-		addRule(ip, standartused);
-	}
-
-	if (vlanno == "60" & personalgrp <= "199") {
-		addRule(ip, rarelyused);
-	} else if (vlanno == "60" & personalgrp > "199") {
-		addRule(ip, standartused);
-	}
-
-	if (vlanno == "70" & personalgrp <= "199") {
-		addRule(ip, rarelyused);
-	} else if (vlanno == "70" & personalgrp > "199") {
-		addRule(ip, standartused);
-	}
-
-	if (vlanno == "80" & personalgrp <= "199") {
-		addRule(ip, rarelyused);
-	} else if (vlanno == "80" & personalgrp > "199") {
-		addRule(ip, standartused);
-	}
-
-	if (vlanno == "90" & personalgrp <= "199") {
-		addRule(ip, rarelyused);
-	} else if (vlanno == "90" & personalgrp > "199") {
-		addRule(ip, standartused);
-	}
-#endif
 }
 
 void LoadBalancing::init()
@@ -289,9 +230,14 @@ void LoadBalancing::init()
 QHash <QString, float> LoadBalancing::networkStateInfo()
 {
 	QHash <QString, float> ifacedownload;
-	ifacedownload.insert(iface1, analyze->getDstIPStats("192.168.1.202") / 8); // MBYTE;
-	ifacedownload.insert(iface2, analyze->getDstIPStats("192.168.3.203") / 8); // MBYTE;
-	ifacedownload.insert(iface3, analyze->getDstIPStats("192.168.4.204") / 8); // MBYTE;
+
+	QString iface1 = appset->get("pcap.network_state.0.ip").toString();
+	QString iface2 = appset->get("pcap.network_state.1.ip").toString();
+	QString iface3 = appset->get("pcap.network_state.2.ip").toString();
+
+	ifacedownload.insert(iface1, analyze->getDstIPStats(iface1) / 8); // MBYTE;
+	ifacedownload.insert(iface2, analyze->getDstIPStats(iface2) / 8); // MBYTE;
+	ifacedownload.insert(iface3, analyze->getDstIPStats(iface3) / 8); // MBYTE;
 
 	return ifacedownload;
 }
@@ -299,41 +245,59 @@ QHash <QString, float> LoadBalancing::networkStateInfo()
 int LoadBalancing::addRule(const QString &ip, const QString &table)
 {
 	logFile(QString("Adding table %1 ~ %2").arg(ip).arg(table));
-	QProcess p;
-	p.start(QString ("ip rule add from %1 table %2").arg(ip).arg(table));
-	if (!p.waitForStarted())
-		return -1;
-	p.waitForFinished(200);
-	if (p.readAllStandardOutput().size() > 0) {
-		qDebug() << "exiting not execute script or command";
-		return -1;
+
+	int err = processRun(QString ("ip rule add from %1 table %2").arg(ip).arg(table));
+	if (err != 0) {
+		logFile(QString (" Process Error ~ ip rule add from %1 table %2").arg(ip).arg(table));
+		return 0;
 	}
+	return 0;
 }
 
 int LoadBalancing::deleteRule(const QString &ip, const QString &table)
 {
 	logFile(QString("Deleting table %1 ~ %2").arg(ip).arg(table));
-	QProcess p;
-	p.start(QString ("ip rule delete from %1 table %2").arg(ip).arg(table));
-	if (!p.waitForStarted())
-		return -1;
-	p.waitForFinished(200);
-	if (p.readAllStandardOutput().size() > 0) {
-		qDebug() << "exiting not execute script or command";
-		return -1;
+
+	int err = processRun(QString ("ip rule delete from %1 table %2").arg(ip).arg(table));
+	if (err != 0) {
+		logFile(QString (" Process Error ~ ip rule delete from %1 table %2").arg(ip).arg(table));
+		return 0;
 	}
+	return 0;
+}
+
+int LoadBalancing::deleteTableRule(const QString &table)
+{
+	QString cmd = QString("ip rule show | grep -i \"%1\" | wc -l").arg(table);
+	int err = processRun(cmd);
+	if (err != 0)
+		logFile(QString("Process error %1").arg(cmd));
+	QString numofrules = p->readAllStandardOutput().data();
+	numofrules.remove("\n");
+
+	if (numofrules.toInt() > 0) {
+		for (int i = 0 ; i < numofrules.toInt(); i++)
+			err = processRun(QString ("ip rule delete table %1").arg(table));
+		if (err != 0)
+			logFile(QString("Process error %1").arg(table));
+		logFile(QString("Deleting rule from table ~ %1").arg(table));
+	}
+	return 0;
 }
 
 void LoadBalancing::addRoute(const QString &iface, const QString &ip, const QString &table)
 {
-
+	Q_UNUSED(iface)
+	Q_UNUSED(ip)
+	Q_UNUSED(table)
 }
 
 void LoadBalancing::deleteRoute(const QString &iface, const QString &ip, const QString &table)
 {
-
+	Q_UNUSED(iface)
+	Q_UNUSED(ip)
+	Q_UNUSED(table)
 }
-
 
 void LoadBalancing::logFile(const QString &logdata)
 {
@@ -350,18 +314,35 @@ void LoadBalancing::logFile(const QString &logdata)
 QStringList LoadBalancing::iptablesParsing(const QString &cmd)
 {
 	QStringList flds = cmd.split(",");
-
 	return flds;
 }
 
-
 int LoadBalancing::iptablesRun(const QStringList &cmd)
 {
-	QProcess p;
-	for (int i = 0; i < cmd.size(); i++)
-		p.start(cmd.at(i));
-	if (!p.waitForStarted())
+	Q_UNUSED(cmd)
+	return 0;
+}
+
+int LoadBalancing::processRun(const QString &cmd)
+{
+	if (!cmd.contains("|")) {
+		p->start(cmd);
+	} else {
+		QString tmpscr = QString("/tmp/btt_process_%1.sh").arg(QUuid::createUuid().toString().split("-").first().remove("{"));
+		QFile f(tmpscr);
+		if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) {
+			logFile(QString("error writing test script '%1'").arg(tmpscr));
+			return -2;
+		}
+		f.write("#!/bin/bash\n\n");
+		f.write(cmd.toUtf8());
+		f.write("\n");
+		f.close();
+		QProcess::execute(QString("chmod +x %1").arg(tmpscr));
+		p->start(tmpscr);
+	}
+	if (!p->waitForStarted())
 		return -1;
-	p.waitForFinished(2000);
-	qDebug() << p.readAllStandardOutput();
+	p->waitForFinished(2000);
+	return 0;
 }
