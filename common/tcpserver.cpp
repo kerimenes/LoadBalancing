@@ -39,8 +39,8 @@ void TcpServer::clientDisconnected()
 
 void TcpServer::newData()
 {
-	qDebug() << "new data";
-	data.clear();
+	QByteArray data;
+	qDebug() << sock->bytesAvailable() << "Sock BytesAvailable";
 	while (sock->bytesAvailable()) {
 		data = sock->readAll();
 		qDebug() << "New Data:" << data;

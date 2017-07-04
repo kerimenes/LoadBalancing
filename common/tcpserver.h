@@ -10,7 +10,6 @@ class TcpServer : public QObject
 	Q_OBJECT
 public:
 	TcpServer(QObject *parent = 0);
-	QByteArray data;
 	int listen(QHostAddress address, quint16 port);
 
 signals:
