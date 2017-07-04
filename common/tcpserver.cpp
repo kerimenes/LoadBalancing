@@ -46,4 +46,5 @@ void TcpServer::newData()
 		qDebug() << "New Data:" << data;
 		emit newDataAvailable(data);
 	}
+	return;
 }
