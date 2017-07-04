@@ -40,8 +40,10 @@ void TcpServer::clientDisconnected()
 void TcpServer::newData()
 {
 	qDebug() << "new data";
+	data.clear();
 	while (sock->bytesAvailable()) {
 		data = sock->readAll();
+		qDebug() << "New Data:" << data;
 		emit newDataAvailable(data);
 	}
 }
