@@ -42,6 +42,7 @@ void TcpServer::newData()
 	QByteArray data;
 	while (sock->bytesAvailable()) {
 		data = sock->readAll();
+		qDebug() << "New Data:" << data;
 		emit newDataAvailable(data);
 	}
 	return;

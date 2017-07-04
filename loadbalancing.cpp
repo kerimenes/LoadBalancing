@@ -84,6 +84,7 @@ void LoadBalancing::gettingData(QByteArray data)
 	lease.insert(ip, mac);
 
 	checkMacAdress(lease);
+	qDebug() << "getting data end";
 }
 
 void LoadBalancing::processOutput()
