@@ -49,6 +49,10 @@ void LoadBalancing::gettingNetworkData()
 
 void LoadBalancing::gettingData(QByteArray data)
 {
+	if(data.isEmpty()) {
+		logFile("Getting Data: Data is empty");
+		return;
+	}
 	QStringList flds = QString (data.data()).split(" ");
 
 	foreach (QString tmp, flds) {

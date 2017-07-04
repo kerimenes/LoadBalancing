@@ -34,14 +34,15 @@ void TcpServer::newConnection()
 
 void TcpServer::clientDisconnected()
 {
-	sock->deleteLater();
+	qDebug() << "Disconnected";
 }
 
 void TcpServer::newData()
 {
-	qDebug() << "new data";
+	QByteArray data;
 	while (sock->bytesAvailable()) {
 		data = sock->readAll();
 		emit newDataAvailable(data);
 	}
+	return;
 }
