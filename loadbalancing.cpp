@@ -49,6 +49,7 @@ void LoadBalancing::gettingNetworkData()
 
 void LoadBalancing::gettingData(QByteArray data)
 {
+	qDebug() << data;
 	QStringList flds = QString (data.data()).split(" ");
 
 	foreach (QString tmp, flds) {
@@ -80,6 +81,7 @@ void LoadBalancing::gettingData(QByteArray data)
 	lease.insert(ip, mac);
 
 	checkMacAdress(lease);
+	qDebug() << "getting data end";
 }
 
 void LoadBalancing::processOutput()
