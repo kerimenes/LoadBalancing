@@ -174,7 +174,8 @@ void LoadBalancing::checkIPruleList(const QString &ip, const QString &table)
 	foreach (QString line, tmp.split("\n")) {
 		flds << line.split("\t").at(1);
 	}
-
+	addRule(ip, table);
+	return;
 	QString temp;
 	int numberoflist = 0;
 	int nolist = 0;
