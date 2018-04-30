@@ -23,7 +23,7 @@ LoadBalancing::LoadBalancing(QObject *parent)
 
 void LoadBalancing::timeout()
 {
-	gettingNetworkData();
+	//gettingNetworkData();
 }
 
 void LoadBalancing::gettingNetworkData()
@@ -250,9 +250,9 @@ int LoadBalancing::addRule(const QString &ip, const QString &table)
 {
 	logFile(QString("Adding table %1 ~ %2").arg(ip).arg(table));
 
-	int err = processRun(QString ("ip rule add from %1 table %2").arg(ip).arg(table));
+	int err = processRun(QString ("ip rule add from %1 table %2").arg(ip).arg("commonlyused"));
 	if (err != 0) {
-		logFile(QString (" Process Error ~ ip rule add from %1 table %2").arg(ip).arg(table));
+		logFile(QString (" Process Error ~ ip rule add from %1 table %2").arg(ip).arg("commonlyused"));
 		return 0;
 	}
 	return 0;
